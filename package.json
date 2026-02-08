@@ -1,0 +1,39 @@
+{
+  "name": "billion_sphere_backend_",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "start:auth": "node apps/auth/index.js",
+    "start:wallet": "node apps/wallet/index.js",
+    "start:marketiqon": "node apps/marketiqon/index.js",
+    "start:buyla": "node apps/buyla/index.js",
+    "start:admin": "node apps/admin/index.js",
+    "start:all": "concurrently \"npm run dev\" \"npm run start:auth\"",
+    "verify": "node scripts/verify-setup.js"
+  },
+  "keywords": [],
+  "author": "Shaik Afzal Ahmed",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.4",
+    "express": "^4.18.2",
+    "helmet": "^4.6.0",
+    "http-proxy-middleware": "^2.0.6",
+    "morgan": "^1.10.1",
+    "pg": "^8.8.0",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "concurrently": "^6.5.1",
+    "nodemon": "^3.1.11"
+  }
+}
