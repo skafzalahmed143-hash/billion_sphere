@@ -5,7 +5,7 @@ const { sendSuccess, sendError } = require('../../../shared/utils/response.util'
 exports.fetchUsers = async (req, res) => {
     try {
         const users = await AuthService.fetchUsers();
-        return sendSuccess(res, 'Users fetched successfullyss', users);
+        return sendSuccess(res, 'Users fetched successfully', users);
     } catch (error) {
         console.error('Error fetching users:', error);
         return sendError(res, 'Failed to fetch users', error);
