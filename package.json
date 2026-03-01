@@ -1,0 +1,24 @@
+{
+  "name": "billion-sphere",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix shared\" \"npm run dev --prefix gateway\" \"npm run dev --prefix services/auth-service\" \"npm run dev --prefix services/marketiqon-service\" \"npm run dev --prefix services/buyla-service\" \"npm run dev --prefix services/ledgira-service\" \"npm run dev --prefix services/tripora-service\" \"npm run dev --prefix services/foodelt-service\" \"npm run dev --prefix services/gamorax-service\" \"npm run dev --prefix services/stoxenova-service\" \"npm run dev --prefix services/crealooma-service\" \"npm run dev --prefix admin-panel\"",
+    "install:all": "npm install && npm install --prefix shared && npm install --prefix gateway && npm install --prefix services/auth-service && npm install --prefix services/marketiqon-service && npm install --prefix services/buyla-service && npm install --prefix services/ledgira-service && npm install --prefix services/tripora-service && npm install --prefix services/foodelt-service && npm install --prefix services/gamorax-service && npm install --prefix services/stoxenova-service && npm install --prefix services/crealooma-service && npm install --prefix admin-panel",
+    "db:migrate": "npm run db:migrate --prefix shared"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "joi": "^18.0.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.19.0",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.14",
+    "sequelize-cli": "^6.6.2"
+  }
+}
