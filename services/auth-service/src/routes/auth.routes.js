@@ -2,27 +2,27 @@
 const authController = require('../controllers/auth.controller');
 const {
   validation: authValidation,
-  authMiddleware: { authenticateJwt }
+  authMiddleware: { authenticateJwt, authenticateDefault }
 } = require('../../../../shared');
 
 const router = express.Router();
 
 // Auth Routes
-router.post('/register', authValidation.register, authController.register);
-router.post('/login', authValidation.login, authController.login);
-router.post('/refresh-token', authValidation.refreshToken, authController.refreshToken);
+router.post('/register', authenticateDefault, authValidation.register, authController.register);
+router.post('/login', authenticateDefault, authValidation.login, authController.login);
+router.post('/refresh-token', authenticateDefault, authValidation.refreshToken, authController.refreshToken);
 
 // OTP Routes
-router.post('/verify-otp', authValidation.verifyOtp, authController.verifyOtp);
-router.post('/send-otp', authValidation.sendOtp, authController.sendOtp);
+router.post('/verify-otp', authenticateDefault, authValidation.verifyOtp, authController.verifyOtp);
+router.post('/resend-otp', authenticateDefault, authValidation.resendOtp, authController.resendOtp);
 
 // Forgot Password Routes
-router.post('/forgot-password', authValidation.forgotPassword, authController.forgotPassword);
-router.post('/reset-password', authValidation.resetPassword, authController.resetPassword);
+router.post('/forgot-password', authenticateDefault, authValidation.forgotPassword, authController.forgotPassword);
+router.post('/reset-password', authenticateDefault, authValidation.resetPassword, authController.resetPassword);
 
 // Master Data Routes
-router.post('/dropdowns', authController.getDropdowns);
-router.post('/add-countries', authController.addCountries);
+router.post('/dropdowns', authenticateDefault, authValidation.getDropdowns, authController.getDropdowns);
+router.post('/add-countries', authenticateDefault, authController.addCountries);
 
 // Profile Route
 router.post('/profile', authenticateJwt, authController.getProfile);

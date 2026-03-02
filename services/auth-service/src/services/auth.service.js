@@ -44,12 +44,20 @@ const registerUser = async (userData) => {
       sponser_name,
       reference_code,
       password,
-      multi_role_ids = [],
+      multi_role_ids,
       platform,
       device_id,
       device_unique_id,
       device_details
     } = userData;
+
+    // Normalize multi_role_ids to an array
+    let roles = multi_role_ids;
+    if (typeof roles === 'number') {
+      roles = [roles];
+    } else if (!Array.isArray(roles)) {
+      roles = [];
+    }
 
     // Check existing user
     const existingUser = await User.findOne({
@@ -64,6 +72,10 @@ const registerUser = async (userData) => {
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Generate OTPs
+    const emailOtp = email_id ? generateOtp() : null;
+    const mobileOtp = mobile_number ? generateOtp() : null;
 
     // Create user
     const createdUser = await User.create({
@@ -80,8 +92,18 @@ const registerUser = async (userData) => {
       sponser_name,
       reference_code,
       password: hashedPassword,
-      multi_role_ids
+      multi_role_ids: roles,
+      email_otp: emailOtp,
+      mobileotp: mobileOtp
     });
+
+    // Send OTPs
+    if (email_id && emailOtp) {
+      await sendEmail(email_id, 'Verification OTP', `Your OTP is ${emailOtp}`);
+    }
+    if (mobile_number && mobileOtp) {
+      await sendSms(mobile_number, `Your OTP is ${mobileOtp}`);
+    }
 
     // Create new active login record (Session)
     await ActiveLogin.create({
@@ -92,20 +114,16 @@ const registerUser = async (userData) => {
       device_details
     });
 
-    // Generate tokens
-    const { accessToken, refreshToken } = buildTokens(createdUser);
-
     return {
       status: 1,
-      message: 'User registered successfully',
+      message: 'User registered successfully. Please verify your account.',
       data: {
         id: createdUser.id,
         email: createdUser.email_id,
         is_approval: 0,
         name: `${createdUser.first_name} ${createdUser.last_name}`.trim(),
         contact_number: createdUser.mobile_number,
-        access_token: accessToken,
-        refresh_token: refreshToken
+        role_id: multi_role_ids
       }
     };
   } catch (error) {
@@ -116,23 +134,20 @@ const registerUser = async (userData) => {
 const loginUser = async (loginData) => {
   try {
     const {
-      email_id,
-      mobile_number,
+      user_identifier,
+      type, // 1 for email, 2 mobile
       password,
       platform,
       device_id,
       device_unique_id,
-      device_details
+      device_details,
+      multi_role_ids: loginRoleId
     } = loginData;
 
-    // Find user by email or mobile number
+    // Find user by email or mobile number based on type
+    const query = type === 1 ? { email_id: user_identifier } : { mobile_number: user_identifier };
     const user = await User.findOne({
-      where: {
-        [Op.or]: [
-          email_id ? { email_id } : null,
-          mobile_number ? { mobile_number } : null
-        ].filter(Boolean)
-      }
+      where: query
     });
 
     if (!user) {
@@ -144,6 +159,44 @@ const loginUser = async (loginData) => {
 
     if (!isPasswordValid) {
       return { status: 0, message: 'Invalid credentials' };
+    }
+
+    // Role validation: check if provided multi_role_ids exists in user's multi_role_ids array
+    const userRoles = user.multi_role_ids || [];
+    if (!userRoles.includes(loginRoleId)) {
+      return { status: 0, message: 'Unauthorized role' };
+    }
+
+    // Verification check
+    const isEmailVerified = user.email_id ? user.email_verified === 1 : true;
+    const isMobileVerified = user.mobile_number ? user.mobile_verified === 1 : true;
+
+    if (!isEmailVerified || !isMobileVerified) {
+      // Generate and send new OTPs
+      const emailOtp = user.email_id && !isEmailVerified ? generateOtp() : null;
+      const mobileOtp = user.mobile_number && !isMobileVerified ? generateOtp() : null;
+
+      if (emailOtp) user.email_otp = emailOtp;
+      if (mobileOtp) user.mobileotp = mobileOtp;
+      await user.save();
+
+      if (emailOtp) {
+        await sendEmail(user.email_id, 'Verification OTP', `Your OTP is ${emailOtp}`);
+      }
+      if (mobileOtp) {
+        await sendSms(user.mobile_number, `Your OTP is ${mobileOtp}`);
+      }
+
+      return {
+        status: 0,
+        message: 'Account not verified. OTP sent.',
+        data: {
+          id: user.id,
+          email: user.email_id,
+          mobile: user.mobile_number,
+          role_id: loginRoleId
+        }
+      };
     }
 
     // Session management: limit to 5 active logins
@@ -190,9 +243,9 @@ const loginUser = async (loginData) => {
         id: user.id,
         email: user.email_id,
         is_approval: 0,
-        user_name: user.reference_code,
         name: `${user.first_name} ${user.last_name}`.trim(),
         contact_number: user.mobile_number,
+        role_id: loginRoleId,
         access_token: accessToken,
         refresh_token: refreshToken
       }
@@ -235,35 +288,6 @@ const getProfile = async (userId) => {
     return { status: 0, message: 'Internal server error' };
   }
 };
-const sendOtp = async (data) => {
-  try {
-    const { user_id, type } = data; // type: 1 for email, 2 for mobile
-    const user = await User.findByPk(user_id);
-
-    if (!user) {
-      return { status: 0, message: 'User not found' };
-    }
-
-    const newOtp = generateOtp();
-
-    if (type === 1) { // Email
-      user.email_otp = newOtp;
-      await user.save();
-      await sendEmail(user.email_id, 'Verification OTP', `Your OTP is ${newOtp}`);
-    } else if (type === 2) { // Mobile
-      user.mobileotp = newOtp;
-      await user.save();
-      await sendSms(user.mobile_number, `Your OTP is ${newOtp}`);
-    } else {
-      return { status: 0, message: 'Invalid verification type' };
-    }
-
-    return { status: 1, message: 'OTP sent successfully' };
-  } catch (error) {
-    console.error('Send OTP Service Error:', error);
-    return { status: 0, message: 'Internal server error' };
-  }
-};
 const forgotPassword = async (data) => {
   try {
     const { email_id, mobile_number } = data;
@@ -278,17 +302,14 @@ const forgotPassword = async (data) => {
       type = 2; // Mobile
     }
 
-    if (!user) {
-      return { status: 0, message: 'User not found' };
-    }
-
     const otp = generateOtp();
-    user.forgot_otp = otp;
-    await user.save();
-
     if (type === 1) {
+      user.email_otp = otp;
+      await user.save();
       await sendEmail(user.email_id, 'Forgot Password OTP', `Your OTP is ${otp}`);
     } else {
+      user.mobileotp = otp;
+      await user.save();
       await sendSms(user.mobile_number, `Your OTP is ${otp}`);
     }
 
@@ -302,25 +323,53 @@ const forgotPassword = async (data) => {
     return { status: 0, message: 'Internal server error' };
   }
 };
-const resetPassword = async (data) => {
+const resendOtp = async (data) => {
   try {
-    const { user_id, otp, password } = data;
+    const { user_id, type } = data; // type: 1 for email, 2 for mobile
     const user = await User.findByPk(user_id);
 
     if (!user) {
       return { status: 0, message: 'User not found' };
     }
 
-    if (user.forgot_otp !== otp) {
-      return { status: 0, message: 'Invalid OTP' };
+    const newOtp = generateOtp();
+
+    if (type === 1) { // Email
+      if (!user.email_id) {
+        return { status: 0, message: 'Email not registered for this account' };
+      }
+      user.email_otp = newOtp;
+      await user.save();
+      await sendEmail(user.email_id, 'Verification OTP', `Your OTP is ${newOtp}`);
+    } else if (type === 2) { // Mobile
+      user.mobileotp = newOtp;
+      await user.save();
+      await sendSms(user.mobile_number, `Your OTP is ${newOtp}`);
+    } else {
+      return { status: 0, message: 'Invalid verification type' };
+    }
+
+    return { status: 1, message: 'OTP resent successfully' };
+  } catch (error) {
+    console.error('Resend OTP Service Error:', error);
+    return { status: 0, message: 'Internal server error' };
+  }
+};
+const resetPassword = async (data) => {
+  try {
+    const { password,user_id } = data;
+
+    const user = await User.findByPk(user_id);
+    if (!user) {
+      return { status: 0, message: 'User not found' };
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     user.password = hashedPassword;
-    user.forgot_otp = null; // Clear OTP after reset
+
     await user.save();
 
-    return { status: 1, message: 'Password reset successfully' };
+    return { status: 1, message: 'Password updated successfully' };
   } catch (error) {
     console.error('Reset Password Service Error:', error);
     return { status: 0, message: 'Internal server error' };
@@ -328,44 +377,53 @@ const resetPassword = async (data) => {
 };
 const verifyOtp = async (verificationData) => {
   try {
-    const { user_id, type, otp } = verificationData; // type: 1-Email Reg, 2-Mobile Reg, 3-Forgot Password
+    const { user_id, type, otp } = verificationData;
+    // type: 1 - Email Registration, 2 - Mobile Registration
+
+    const DEFAULT_OTP = 'BS1234'; // 👈 Fixed OTP
 
     const user = await User.findByPk(user_id);
     if (!user) {
       return { status: 0, message: 'User not found' };
     }
 
+    // ✅ Check against DEFAULT OTP instead of DB
+    if (otp !== DEFAULT_OTP) {
+      return { status: 0, message: 'Invalid OTP' };
+    }
+
     if (type === 1) { // Email Registration
-      if (user.email_otp !== otp) {
-        return { status: 0, message: 'Invalid email OTP' };
-      }
       user.email_verified = 1;
       user.email_otp = null;
+
     } else if (type === 2) { // Mobile Registration
-      if (user.mobileotp !== otp) {
-        return { status: 0, message: 'Invalid mobile OTP' };
-      }
       user.mobile_verified = 1;
       user.mobileotp = null;
-    } else if (type === 3) { // Forgot Password
-      if (user.forgot_otp !== otp) {
-        return { status: 0, message: 'Invalid forgot password OTP' };
-      }
-      // We don't clear forget_otp here because resetPassword needs it? 
-      // Actually, standard flow is: Verify OTP -> Success -> Reset Password (with new password).
-      // If we clear it here, resetPassword can't check it unless we return a token.
-      // Let's keep it and clear it in resetPassword, or have verifyOtp return a success message.
+
     } else {
       return { status: 0, message: 'Invalid verification type' };
     }
 
     await user.save();
 
-    const typeMsg = type === 1 ? 'Email' : type === 2 ? 'Mobile' : 'OTP';
+    const typeMsg = type === 1 ? 'Email' : 'Mobile';
+
+    // Generate tokens after successful verification
+    const { accessToken, refreshToken } = buildTokens(user);
+
     return {
       status: 1,
-      message: `${typeMsg} verified successfully`
+      message: `${typeMsg} verified successfully`,
+      data: {
+        id: user.id,
+        email: user.email_id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        access_token: accessToken,
+        refresh_token: refreshToken
+      }
     };
+
   } catch (error) {
     console.error('Verify OTP Service Error:', error);
     return { status: 0, message: 'Internal server error' };
@@ -405,12 +463,11 @@ const refreshToken = async (data) => {
     return { status: 0, message: 'Internal server error' };
   }
 };
-
 const getDropdowns = async (type) => {
   try {
     let data;
     if (parseInt(type) === 1) {
-      data = await Country.findAll({ order: [['countryName', 'ASC']] });
+      data = await Country.findAll({ order: [['country_name', 'ASC']] });
     } else if ([2, 3].includes(parseInt(type))) {
       data = await StaticDropDownList.findAll({
         where: { type_id: type, status: 1 },
@@ -430,7 +487,6 @@ const getDropdowns = async (type) => {
     return { status: 0, message: 'Internal server error' };
   }
 };
-
 const addCountries = async () => {
   try {
     const csvFilePath = path.join(__dirname, '../../../../shared/src/staticFiles/countriesList/countrycodes.csv');
@@ -465,9 +521,9 @@ module.exports = {
   loginUser,
   getProfile,
   verifyOtp,
-  sendOtp,
   forgotPassword,
   resetPassword,
+  resendOtp,
   refreshToken,
   getDropdowns,
   addCountries

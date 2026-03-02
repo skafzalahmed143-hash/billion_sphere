@@ -27,7 +27,7 @@ module.exports = {
             },
             email_id: {
                 type: Sequelize.STRING,
-                allowNull: false,
+                allowNull: true,
                 unique: true
             },
             address: {

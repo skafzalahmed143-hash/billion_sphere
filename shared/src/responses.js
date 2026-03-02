@@ -1,8 +1,8 @@
 const { HTTP_STATUS } = require('./status-codes');
 
-const sendSuccess = (res, message, data = {}, statusCode = HTTP_STATUS.OK) => {
+const sendSuccess = (res, message, data = {}, statusCode = HTTP_STATUS.OK, status = 1) => {
   return res.status(statusCode).json({
-    status: 1,
+    status,
     message,
     data
   });
@@ -12,10 +12,11 @@ const sendError = (
   res,
   message,
   statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR,
-  data = []
+  data = [],
+  status = 0
 ) => {
   return res.status(statusCode).json({
-    status: 0,
+    status,
     message,
     data
   });

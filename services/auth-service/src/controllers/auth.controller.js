@@ -23,8 +23,13 @@ const login = async (req, res) => {
     const result = await authService.loginUser(req.body);
 
     if (result.status === 1) {
-      return sendSuccess(res, result.message, result.data, HTTP_STATUS.OK);
+      return sendSuccess(res, result.message, result.data, HTTP_STATUS.OK, result.status);
     }
+
+    if (result.message === 'Account not verified. OTP sent.') {
+      return sendSuccess(res, result.message, result.data, HTTP_STATUS.OK, 0);
+    }
+
     return sendError(res, result.message, HTTP_STATUS.UNAUTHORIZED);
 
   } catch (error) {
@@ -60,15 +65,15 @@ const verifyOtp = async (req, res) => {
   }
 };
 
-const sendOtp = async (req, res) => {
+const resendOtp = async (req, res) => {
   try {
-    const result = await authService.sendOtp(req.body);
+    const result = await authService.resendOtp(req.body);
     if (result.status === 1) {
       return sendSuccess(res, result.message, result.data, HTTP_STATUS.OK);
     }
     return sendError(res, result.message, HTTP_STATUS.BAD_REQUEST);
   } catch (error) {
-    console.error('Send OTP Controller Error:', error);
+    console.error('Resend OTP Controller Error:', error);
     return sendError(res, 'Internal Server Error', HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 };
@@ -144,7 +149,7 @@ module.exports = {
   login,
   getProfile,
   verifyOtp,
-  sendOtp,
+  resendOtp,
   forgotPassword,
   resetPassword,
   refreshToken,

@@ -44,10 +44,7 @@ const authValidation = {
       sponser_name: Joi.string().trim().allow('', null).optional(),
       reference_code: Joi.string().trim().allow('', null).optional(),
       password: Joi.string().min(6).required(),
-      multi_role_ids: Joi.array()
-        .items(Joi.number().integer())
-        .min(0)
-        .required(),
+      multi_role_ids: Joi.number().required(),
       platform: Joi.string().required(),
       device_id: Joi.string().required(),
       device_unique_id: Joi.string().required(),
@@ -61,15 +58,15 @@ const authValidation = {
 
   login: (req, res, next) => {
     const schema = Joi.object({
-      email_id: Joi.string().email().optional(),
-      mobile_number: Joi.string().trim().optional(),
+      user_identifier: Joi.string().required(),
+      type: Joi.number().valid(1, 2).required(),
       password: Joi.string().required(),
       platform: Joi.string().required(),
       device_id: Joi.string().required(),
       device_unique_id: Joi.string().required(),
-      device_details: Joi.string().required()
+      device_details: Joi.string().required(),
+      multi_role_ids: Joi.number().required()
     })
-      .or('email_id', 'mobile_number')
       .unknown(true)
       .messages(validationMessage);
 
@@ -79,7 +76,7 @@ const authValidation = {
   verifyOtp: (req, res, next) => {
     const schema = Joi.object({
       user_id: Joi.string().required(),
-      type: Joi.number().valid(1, 2).required(),
+      type: Joi.number().valid(1, 2, 3).required(),
       otp: Joi.string().required()
     })
       .unknown(true)
@@ -88,7 +85,7 @@ const authValidation = {
     return errorHandling(schema, req, res, next);
   },
 
-  sendOtp: (req, res, next) => {
+  resendOtp: (req, res, next) => {
     const schema = Joi.object({
       user_id: Joi.string().required(),
       type: Joi.number().valid(1, 2).required()
@@ -98,6 +95,7 @@ const authValidation = {
 
     return errorHandling(schema, req, res, next);
   },
+
 
   forgotPassword: (req, res, next) => {
     const schema = Joi.object({
@@ -114,7 +112,6 @@ const authValidation = {
   resetPassword: (req, res, next) => {
     const schema = Joi.object({
       user_id: Joi.string().required(),
-      otp: Joi.string().required(),
       password: Joi.string().min(6).required()
     })
       .unknown(true)
@@ -126,6 +123,16 @@ const authValidation = {
   refreshToken: (req, res, next) => {
     const schema = Joi.object({
       refresh_token: Joi.string().required()
+    })
+      .unknown(true)
+      .messages(validationMessage);
+
+    return errorHandling(schema, req, res, next);
+  },
+
+  getDropdowns: (req, res, next) => {
+    const schema = Joi.object({
+      type: Joi.number().valid(1, 2, 3).required()
     })
       .unknown(true)
       .messages(validationMessage);

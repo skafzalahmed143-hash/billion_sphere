@@ -38,6 +38,41 @@ const authenticateJwt = (req, res, next) => {
   }
 };
 
+const authenticateDefault = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      return sendError(
+        res,
+        MESSAGES.COMMON.TOKEN_REQUIRED,
+        HTTP_STATUS.UNAUTHORIZED
+      );
+    }
+
+    const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
+
+    if (process.env.MASTER_TOKEN && token === process.env.MASTER_TOKEN) {
+      req.user = { id: 'master', roles: [1] };
+      return next();
+    }
+
+    return sendError(
+      res,
+      MESSAGES.COMMON.STATIC_TOKEN_INVALID,
+      HTTP_STATUS.UNAUTHORIZED
+    );
+  } catch (error) {
+    return sendError(
+      res,
+      'Authentication Failed',
+      HTTP_STATUS.UNAUTHORIZED,
+      error.message
+    );
+  }
+};
+
 module.exports = {
-  authenticateJwt
+  authenticateJwt,
+  authenticateDefault
 };

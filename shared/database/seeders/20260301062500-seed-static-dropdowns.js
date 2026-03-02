@@ -19,6 +19,7 @@ module.exports = {
             { title: 'gamorax', type_id: 3, status: 1 },
             { title: 'stoxenova', type_id: 3, status: 1 },
             { title: 'crealooma', type_id: 3, status: 1 }
+            
         ], {});
     },
 

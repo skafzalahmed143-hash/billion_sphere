@@ -5,6 +5,7 @@ const MESSAGES = Object.freeze({
     INTERNAL_ERROR: 'Internal server error',
     TOKEN_REQUIRED: 'Authorization token is required',
     INVALID_TOKEN: 'Invalid or expired token',
+    STATIC_TOKEN_INVALID: 'Invalid token',
     VALIDATION_ERROR: 'Validation error'
   },
   AUTH: {
