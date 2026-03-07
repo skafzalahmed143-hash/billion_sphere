@@ -65,7 +65,8 @@ const authValidation = {
       device_id: Joi.string().required(),
       device_unique_id: Joi.string().required(),
       device_details: Joi.string().required(),
-      multi_role_ids: Joi.number().required()
+      multi_role_ids: Joi.number().required(),
+      country_id: Joi.number().integer().optional()
     })
       .unknown(true)
       .messages(validationMessage);
